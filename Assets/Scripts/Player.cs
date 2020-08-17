@@ -10,30 +10,36 @@ public class Player : MonoBehaviour {
     [SerializeField] float runSpeed = 5f;
     [SerializeField] float jumpSpeed = 5f;
     [SerializeField] float climbSpeed = 5f;
+    [SerializeField] Vector2 deathKick = new Vector2(25f, 25f);
 
     // State
     bool isAlive = true;
 
     // Cached component references
     Animator myAnimator;
-    Collider2D myCollider;
+    BoxCollider2D myFeetCollider;
+    CapsuleCollider2D myBodyCollider;
     Rigidbody2D myRigidbody;
     float gravityScaleAtStart;
 
     // Start is called before the first frame update
     void Start() {
         myAnimator = GetComponent<Animator>();
-        myCollider = GetComponent<Collider2D>();
+        myBodyCollider = GetComponent<CapsuleCollider2D>();
+        myFeetCollider = GetComponent<BoxCollider2D>();
         myRigidbody = GetComponent<Rigidbody2D>();
         gravityScaleAtStart = myRigidbody.gravityScale;
     }
 
     // Update is called once per frame
     void Update() {
+        if (!isAlive) { return; }
+
         Run();
         Jump();
         ClimbLadder();
         FlipSprite();
+        Die();
     }
 
     private void Run() {
@@ -45,7 +51,7 @@ public class Player : MonoBehaviour {
     }
 
     private void Jump() {
-        if (!myCollider.IsTouchingLayers(LayerMask.GetMask("Ground"))) { return; }
+        if (!myFeetCollider.IsTouchingLayers(LayerMask.GetMask("Ground"))) { return; }
 
         if (CrossPlatformInputManager.GetButtonDown("Jump")) {
             Vector2 jumpVelocityToAdd = new Vector2(0f, jumpSpeed);
@@ -54,7 +60,7 @@ public class Player : MonoBehaviour {
     }
 
     private void ClimbLadder() {
-        if (!myCollider.IsTouchingLayers(LayerMask.GetMask("Climbing"))) {
+        if (!myFeetCollider.IsTouchingLayers(LayerMask.GetMask("Climbing"))) {
             ChangePlayerAnimation("Climbing", 0);
             myRigidbody.gravityScale = gravityScaleAtStart;
             return;
@@ -72,6 +78,14 @@ public class Player : MonoBehaviour {
         bool playerHasHorizontalSpeed = Mathf.Abs(myRigidbody.velocity.x) > Mathf.Epsilon;
         if (playerHasHorizontalSpeed) {
             transform.localScale = new Vector2(Mathf.Sign(myRigidbody.velocity.x), 1f);
+        }
+    }
+
+    private void Die() {
+        if (myBodyCollider.IsTouchingLayers(LayerMask.GetMask("Enemy", "Hazard"))) {
+            isAlive = false;
+            myAnimator.SetTrigger("Dying");
+            GetComponent<Rigidbody2D>().velocity = deathKick;
         }
     }
 
